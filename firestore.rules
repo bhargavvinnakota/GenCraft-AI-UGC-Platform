@@ -1,0 +1,134 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 1. Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == "bhargav.vinnakota@gmail.com"
+      );
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // 2. Validation Blueprints
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+             data.keys().size() <= 7 &&
+             data.uid == request.auth.uid &&
+             data.email is string &&
+             data.role in ['user', 'admin'] &&
+             data.createdAt == request.time;
+    }
+
+    function isValidContent(data) {
+      return data.keys().hasAll(['creatorId', 'imageUrl', 'moderationStatus', 'createdAt']) &&
+             data.creatorId is string &&
+             data.imageUrl is string &&
+             data.moderationStatus in ['pending', 'approved', 'rejected'] &&
+             (data.price == null || (data.price is number && data.price >= 0)) &&
+             (data.likes == null || (data.likes is list && data.likes.size() <= 1000));
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['buyerId', 'sellerId', 'contentId', 'amount', 'status', 'createdAt']) &&
+             data.buyerId == request.auth.uid &&
+             data.amount is number && data.amount >= 0 &&
+             data.status in ['completed', 'pending', 'failed'] &&
+             data.createdAt == request.time;
+    }
+
+    // 3. Collection Rules
+    match /users/{uid} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && isValidUser(incoming());
+      allow update: if isSignedIn() && (
+        (isOwner(uid) && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL', 'bio'])) ||
+        isAdmin()
+      );
+    }
+
+    match /characters/{id} {
+      allow get: if isSignedIn() && (isOwner(existing().creatorId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && incoming().creatorId == request.auth.uid && incoming().name is string;
+      allow update: if isSignedIn() && isOwner(existing().creatorId) && incoming().creatorId == existing().creatorId;
+      allow delete: if isAdmin() || (isSignedIn() && isOwner(existing().creatorId));
+    }
+
+    match /brandKits/{id} {
+      allow get: if isSignedIn() && (isOwner(existing().creatorId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && incoming().creatorId == request.auth.uid && incoming().name is string;
+      allow update: if isSignedIn() && isOwner(existing().creatorId) && incoming().creatorId == existing().creatorId;
+      allow delete: if isAdmin() || (isSignedIn() && isOwner(existing().creatorId));
+    }
+
+    match /campaigns/{id} {
+      allow get: if isSignedIn() && (isOwner(existing().creatorId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.creatorId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && incoming().creatorId == request.auth.uid && incoming().name is string;
+      allow update: if isSignedIn() && isOwner(existing().creatorId) && incoming().creatorId == existing().creatorId;
+      allow delete: if isAdmin() || (isSignedIn() && isOwner(existing().creatorId));
+    }
+
+    match /content/{contentId} {
+      allow get: if true;
+      allow list: if (resource.data.moderationStatus == 'approved' || isAdmin() || resource.data.creatorId == request.auth.uid);
+      allow create: if isSignedIn() && isValidContent(incoming()) && incoming().creatorId == request.auth.uid && incoming().createdAt == request.time;
+      allow update: if (
+        isValidContent(incoming()) && incoming().creatorId == existing().creatorId && incoming().createdAt == existing().createdAt && (
+          // Action: Like/Unlike
+          (incoming().diff(existing()).affectedKeys().hasOnly(['likes'])) ||
+          // Action: Edit
+          (isOwner(existing().creatorId) && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'price', 'isMonetized', 'tags', 'updatedAt']) && incoming().updatedAt == request.time) ||
+          // Action: Moderation
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['moderationStatus', 'moderationReason', 'updatedAt']) && incoming().updatedAt == request.time)
+        )
+      );
+      allow delete: if isAdmin() || (isSignedIn() && isOwner(existing().creatorId));
+    }
+
+    match /transactions/{id} {
+      allow get: if isSignedIn() && (isOwner(existing().buyerId) || isOwner(existing().sellerId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() && isValidTransaction(incoming());
+      // Transactions are immutable
+      allow update, delete: if false;
+    }
+    
+    // Admin list
+    match /admins/{uid} {
+      allow read: if isSignedIn();
+      allow write: if false; // Managed via console or super admin
+    }
+  }
+}

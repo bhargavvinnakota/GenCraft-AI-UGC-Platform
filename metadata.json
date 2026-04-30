@@ -1,0 +1,13 @@
+{
+  "name": "GenCraft: AI UGC Platform",
+  "description": "A comprehensive platform for creating, sharing, and monetizing AI-generated content with integrated moderation and image analysis.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "AI Content Generation",
+    "Social Sharing",
+    "Content Monetization",
+    "Image Analysis"
+  ]
+}

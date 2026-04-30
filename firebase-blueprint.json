@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user of the platform.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "bio": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "Character": {
+      "title": "Character",
+      "description": "A reusable character persona for consistent AI generation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "name": { "type": "string" },
+        "baseImageUrl": { "type": "string" },
+        "expressionSheetUrl": { "type": "string" },
+        "traits": { "type": "string", "description": "Biometric DNA specs" },
+        "bodyType": { "type": "string" },
+        "style": { "type": "string" },
+        "dnaMetadata": { "type": "object", "description": "Technical neural weights" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "name", "traits", "bodyType"]
+    },
+    "BrandKit": {
+      "title": "Brand Kit",
+      "description": "Brand identity assets including fonts, colors, logos, and voice.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "name": { "type": "string" },
+        "logoUrl": { "type": "string" },
+        "primaryColor": { "type": "string" },
+        "secondaryColor": { "type": "string" },
+        "fontFamily": { "type": "string" },
+        "toneOfVoice": { "type": "string" },
+        "targetAudience": { "type": "string" }
+      },
+      "required": ["creatorId", "name"]
+    },
+    "Campaign": {
+      "title": "Campaign",
+      "description": "Marketing campaign with A/B variants.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "brandKitId": { "type": "string" },
+        "name": { "type": "string" },
+        "goal": { "type": "string", "enum": ["awareness", "conversion", "engagement"] },
+        "budget": { "type": "number" },
+        "impressions": { "type": "number", "description": "Number of impressions" },
+        "clicks": { "type": "number", "description": "Number of clicks" },
+        "conversions": { "type": "number", "description": "Number of conversions" },
+        "status": { "type": "string", "enum": ["draft", "active", "completed"] },
+        "variants": { 
+          "type": "array", 
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "characterId": { "type": "string" },
+              "hook": { "type": "string" },
+              "script": { "type": "string" },
+              "videoUrl": { "type": "string" },
+              "predictedScore": { "type": "number" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["creatorId", "name", "status"]
+    },
+    "Content": {
+      "title": "Content",
+      "description": "Represents AI-generated content (Image or Video).",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "creatorId": { "type": "string" },
+        "characterId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "videoUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["image", "video"] },
+        "workflow": { "type": "string" },
+        "prompt": { "type": "string" },
+        "price": { "type": "number" },
+        "isMonetized": { "type": "boolean" },
+        "moderationStatus": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "likes": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "metadata": { "type": "object", "description": "Technical specs like seed, model, etc." }
+      },
+      "required": ["creatorId", "imageUrl", "moderationStatus", "createdAt"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Represents a monetization transaction.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "buyerId": { "type": "string" },
+        "sellerId": { "type": "string" },
+        "contentId": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["completed", "pending", "failed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["buyerId", "sellerId", "contentId", "amount", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "Users collection."
+    },
+    "/characters/{charId}": {
+      "schema": "Character",
+      "description": "Reusable characters for consistency."
+    },
+    "/brandKits/{brandKitId}": {
+      "schema": "BrandKit",
+      "description": "Brand Kits."
+    },
+    "/campaigns/{campaignId}": {
+      "schema": "Campaign",
+      "description": "Marketing Campaigns."
+    },
+    "/content/{contentId}": {
+      "schema": "Content",
+      "description": "Platform-wide AI generated content."
+    },
+    "/transactions/{id}": {
+      "schema": "Transaction",
+      "description": "Records of purchases."
+    }
+  }
+}
